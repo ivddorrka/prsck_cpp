@@ -20,6 +20,9 @@
 
 #define USE_CLIENT_DNS  0
 #define USE_PROXY_DNS   1
+#ifndef SOCKET_ERROR
+#define SOCKET_ERROR -1
+#endif
 
 
 struct proxysocketconfig_struct {
@@ -318,52 +321,62 @@ int proxysocketconfig_add_proxy (proxysocketconfig proxy, int proxytype, const s
     return 0;
 }
 
-int appendsprintf (char** dststrp, int dststrlen, const char* fmt, ...)
+
+/// TO-DO redo
+int appendsprintf (std::string dststrp, int dststrlen, const std::string fmt, ...)
 {
     int len;
     char* str;
-    va_list ap;
-    va_start(ap, fmt);
-    len = vasprintf(&str, fmt, ap);
-    va_end(ap);
+//    va_list ap;
+//    va_start(ap, fmt);
+    len = fmt.length();
+//    va_end(ap);
     //append result
     if (len >= 0) {
         if (dststrlen < 0)
-            dststrlen = (*dststrp ? strlen(*dststrp) : 0);
+            dststrlen = (dststrp.length()!=0 ? dststrp.length() : 0);
         len = dststrlen + len;
-        // had error here TO-DO -> check why what
-        if ((realloc(*dststrp, len + 1)) == NULL)
+        ///TO-DO - test this part
+        try{
+            dststrp = dststrp + str;
+        } catch(...){
             len = -1;
-        else
-            strcpy(*dststrp + dststrlen, str);
-        free(str);
+        }
+        ///TO-DO END
+//        if (dststrp = dststrp + str)
+//            len = -1;
+//        else
+//            strcpy(*dststrp + dststrlen, str);
     }
     return len;
 }
 
-std::string proxysocketconfig_get_description_entry (proxysocketconfig proxy, struct proxyinfo_struct* proxyinfo, char* desc, int desclen)
+///
+
+std::string proxysocketconfig_get_description_entry (proxysocketconfig proxy, struct proxyinfo_struct* proxyinfo, std::string desc, int desclen)
 {
-    char* desc_local = desc.c_str();
+//    char* desc_local = desc.c_str();
+
     if (!proxy || !proxyinfo)
         return desc;
     if (proxyinfo != proxy->proxyinfolist)
-        desclen = appendsprintf(&desc, desclen, " -> ");
+        desclen = appendsprintf(desc, desclen, " -> ");
     switch (proxyinfo->proxytype) {
         case PROXYSOCKET_TYPE_NONE :
-            desclen = appendsprintf(&desc, desclen, "direct connection");
+            desclen = appendsprintf(desc, desclen, "direct connection");
             break;
         case PROXYSOCKET_TYPE_SOCKS4 :
-            desclen = appendsprintf(&desc, desclen, "SOCKS4 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "SOCKS4 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
             break;
         case PROXYSOCKET_TYPE_SOCKS5 :
-            desclen = appendsprintf(&desc, desclen, "SOCKS5 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "SOCKS5 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
             break;
         case PROXYSOCKET_TYPE_WEB_CONNECT :
-            desclen = appendsprintf(&desc, desclen, "web proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty()  ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "web proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty()  ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
             break;
             //case PROXYSOCKET_TYPE_INVALID :
         default :
-            desclen = appendsprintf(&desc, desclen, "INVALID");
+            desclen = appendsprintf(desc, desclen, "INVALID");
             break;
     }
     if (!proxyinfo->next || proxyinfo->next->proxytype == PROXYSOCKET_TYPE_NONE)
@@ -378,9 +391,11 @@ std::string proxysocketconfig_get_description (proxysocketconfig proxy)
     if (!proxy || !proxy->proxyinfolist)
         return NULL;
     if (proxy->proxyinfolist && proxy->proxyinfolist->proxytype != PROXYSOCKET_TYPE_NONE)
+        // not sure f this is a necessary function
         resultlen = appendsprintf(result, 0, "(use %s DNS) ", (proxy->proxy_dns == USE_PROXY_DNS ? "server" : "client"));
     return proxysocketconfig_get_description_entry(proxy, proxy->proxyinfolist, result, resultlen);
 }
+//std::string proxysocketconfig_get_description_entry (proxysocketconfig proxy, struct proxyinfo_struct* proxyinfo, char* desc, int desclen)
 
 void proxysocketconfig_set_logging (proxysocketconfig proxy, proxysocketconfig_log_fn log_fn, void* userdata)
 {
@@ -407,9 +422,9 @@ void proxysocketconfig_free (proxysocketconfig proxy)
     }
 }
 
-void log_and_keep_error_message (proxysocketconfig proxy, char** pmsg, const char* fmt, ...)
+void log_and_keep_error_message (proxysocketconfig proxy, std::string pmsg, const char* fmt, ...)
 {
-    if (fmt && (proxy->log_function || pmsg)) {
+    if (fmt && (proxy->log_function || pmsg.length()!=0)) {
         char* msg;
         int msglen;
         //generate message
@@ -417,14 +432,13 @@ void log_and_keep_error_message (proxysocketconfig proxy, char** pmsg, const cha
         va_start(ap, fmt);
         msglen = vasprintf(&msg, fmt, ap);
         va_end(ap);
+//        msglen =
         //log message
         if (msglen >= 0) {
             if (proxy->log_function)
                 proxy->log_function(PROXYSOCKET_LOG_ERROR, msg, proxy->log_data);
-            if (pmsg)
-                *pmsg = msg;
-            else
-                free(msg);
+            if (pmsg.length()!=0)
+                pmsg = msg;
         }
     }
 }
@@ -437,7 +451,7 @@ void log_and_keep_error_message (proxysocketconfig proxy, char** pmsg, const cha
   return INVALID_SOCKET; \
 }
 
-SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* proxyinfo, const char* dsthost, uint16_t dstport, char** errmsg)
+SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* proxyinfo, const std::string dsthost, uint16_t dstport, std::string errmsg)
 {
     uint32_t hostaddr;
     uint32_t proxyaddr;
@@ -447,17 +461,17 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
     //resolve destination host if needed (when client DNS is used or for a direct connection)
     if (proxy->proxy_dns == USE_CLIENT_DNS || proxyinfo->proxytype == PROXYSOCKET_TYPE_NONE) {
         if ((hostaddr = get_ipv4_address(dsthost)) == INADDR_NONE)
-        ERROR_DISCONNECT_AND_ABORT("Error looking up host: %s", dsthost)
-        write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "Resolved host %s to IP: %s", dsthost, inet_ntoa(*(struct in_addr*)&hostaddr));
+        ERROR_DISCONNECT_AND_ABORT("Error looking up host: %s", dsthost.c_str())
+        write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "Resolved host %s to IP: %s", dsthost.c_str(), inet_ntoa(*(struct in_addr*)&hostaddr));
     } else {
         hostaddr = INADDR_NONE;
     }
     //resolve proxy host address
     proxyaddr = INADDR_NONE;
-    if (proxyinfo->proxyhost && *proxyinfo->proxyhost) {
+    if (proxyinfo->proxyhost.length()!=0) {
         if ((proxyaddr = get_ipv4_address(proxyinfo->proxyhost)) == INADDR_NONE)
-        ERROR_DISCONNECT_AND_ABORT("Error looking up proxy host: %s", proxyinfo->proxyhost)
-        write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "Resolved proxy host %s to IP: %s", proxyinfo->proxyhost, inet_ntoa(*(struct in_addr*)&proxyaddr));
+        ERROR_DISCONNECT_AND_ABORT("Error looking up proxy host: %s", (proxyinfo->proxyhost).c_str())
+        write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "Resolved proxy host %s to IP: %s", proxyinfo->proxyhost.c_str(), inet_ntoa(*(struct in_addr*)&proxyaddr));
     }
     if (proxyaddr == INADDR_NONE && proxyinfo->proxytype != PROXYSOCKET_TYPE_NONE)
     ERROR_DISCONNECT_AND_ABORT("Missing proxy host")
@@ -509,12 +523,15 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
         request->dst_port = htons(dstport);
         request->dst_addr = (proxy->proxy_dns == USE_CLIENT_DNS ? hostaddr : htonl(0x000000FF));
         request->userid[0] = 0;
-        if (proxyinfo->proxyuser && *proxyinfo->proxyuser) {
-            requestlen += strlen(proxyinfo->proxyuser);
+        if (proxyinfo->proxyuser.length() != 0 && proxyinfo->proxyuser.length()!=0) {
+            requestlen += (proxyinfo->proxyuser).length();
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
-            strcpy((char*)&(request->userid), proxyinfo->proxyuser);
+            ///////////////////
+            strcpy((char*)&(request->userid), proxyinfo->proxyuser); //not sure what it does..
+            ///////////////////
         }
+
         if (proxy->proxy_dns) {
             size_t dsthostlen = (dsthost ? strlen(dsthost) : 0);
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen + dsthostlen + 1)) == NULL)
@@ -522,7 +539,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             strcpy(((char*)request) + requestlen, (dsthost ? dsthost : ""));
             requestlen += dsthostlen + 1;
         }
-        if (!(proxyinfo->proxyuser && *proxyinfo->proxyuser))
+        if (proxyinfo->proxyuser.length()!=0)
             write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost), (unsigned long)dstport);
         else
             write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu (user-id: %s)", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost), (unsigned long)dstport, proxyinfo->proxyuser);
@@ -857,7 +874,11 @@ void socket_set_timeouts_milliseconds (SOCKET sock, uint32_t sendtimeout, uint32
 
 #define READ_BUFFER_SIZE 128
 
-char* socket_receiveline (SOCKET sock)
+
+
+
+/////////////////// rewrite to string
+std::string socket_receiveline (SOCKET sock)
 {
     char* buf;
     int bufpos = 0;
@@ -904,10 +925,14 @@ char* socket_receiveline (SOCKET sock)
     buf[bufpos] = 0;
     return buf;
 }
+/////////////////// rewrite to string
 
-char* socket_get_error_message ()
+
+
+
+std::string socket_get_error_message ()
 {
-    char* result = NULL;
+    std::string result = NULL;
 #ifdef _WIN32
     //get Windows error message
   LPSTR errmsg;
@@ -916,10 +941,10 @@ char* socket_get_error_message ()
     LocalFree(errmsg);
   }
 #else
-    char* errmsg;
+    std::string errmsg;
     //to do: use strerror_r instead
-    if ((errmsg = strerror(errno)) != NULL) {
-        result = strdup(errmsg);
+    if ((errmsg = strerror(errno)).length()!=0) {
+        result = strdup(errmsg.c_str());
     }
 #endif
     return result;

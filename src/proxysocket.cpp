@@ -12,6 +12,7 @@
 #include <string>
 #include <string.h>
 
+
 #define PROXYSOCKET_VERSION_STRINGIZE_(major, minor, micro) #major"."#minor"."#micro
 #define PROXYSOCKET_VERSION_STRINGIZE(major, minor, micro) PROXYSOCKET_VERSION_STRINGIZE_(major, minor, micro)
 
@@ -366,13 +367,13 @@ std::string proxysocketconfig_get_description_entry (proxysocketconfig proxy, st
             desclen = appendsprintf(desc, desclen, "direct connection");
             break;
         case PROXYSOCKET_TYPE_SOCKS4 :
-            desclen = appendsprintf(desc, desclen, "SOCKS4 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "SOCKS4 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser.c_str()));
             break;
         case PROXYSOCKET_TYPE_SOCKS5 :
-            desclen = appendsprintf(desc, desclen, "SOCKS5 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "SOCKS5 proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty() ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser.c_str()));
             break;
         case PROXYSOCKET_TYPE_WEB_CONNECT :
-            desclen = appendsprintf(desc, desclen, "web proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty()  ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser));
+            desclen = appendsprintf(desc, desclen, "web proxy: %s:%u (%s%s)", proxyinfo->proxyhost.c_str(), (unsigned int)proxyinfo->proxyport, (proxyinfo->proxyuser.empty()  ? "no authentication" : "user: "), (proxyinfo->proxyuser.empty() ? "" : proxyinfo->proxyuser.c_str()));
             break;
             //case PROXYSOCKET_TYPE_INVALID :
         default :
@@ -527,25 +528,28 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             requestlen += (proxyinfo->proxyuser).length();
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
-            ///////////////////
+            ///////////////////TO-DO
             strcpy((char*)&(request->userid), proxyinfo->proxyuser); //not sure what it does..
-            ///////////////////
+            ///////////////////TO-DO END
         }
 
         if (proxy->proxy_dns) {
-            size_t dsthostlen = (dsthost ? strlen(dsthost) : 0);
+            size_t dsthostlen = (dsthost.length()!=0 ? dsthost.length() : 0);
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen + dsthostlen + 1)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
-            strcpy(((char*)request) + requestlen, (dsthost ? dsthost : ""));
-            requestlen += dsthostlen + 1;
+            strcpy(((char*)request) + requestlen, (dsthost.length()!=0 ? dsthost : ""));
+            ///TO-DO
+            requestlen += dsthostlen + 1;  //c thing - don't need it here
+            ///TO-DO END
+
         }
         if (proxyinfo->proxyuser.length()!=0)
-            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost), (unsigned long)dstport);
+            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost.c_str()), (unsigned long)dstport);
         else
-            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu (user-id: %s)", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost), (unsigned long)dstport, proxyinfo->proxyuser);
+            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu (user-id: %s)", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost.c_str()), (unsigned long)dstport, proxyinfo->proxyuser.c_str());
         if (send(sock, (void*)request, requestlen, 0) < requestlen)
         ERROR_DISCONNECT_AND_ABORT("Error sending connect command to SOCKS4 proxy")
-        free(request);
+        free(request);// not necessary possibly
         //receive response
         struct socks4_connect_request response;
         if (recv(sock, (void*)&response, 8, 0) < 8)
@@ -569,13 +573,13 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
     } else if (proxyinfo->proxytype == PROXYSOCKET_TYPE_SOCKS5) {
         /* * * CONNECTION USING SOCKS5 PROXY * * */
         //connect to the SOCKS5 proxy server
-        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Preparing to connect to SOCKS5 proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);
+        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Preparing to connect to SOCKS5 proxy: %s:%lu", proxyinfo->proxyhost.c_str(), (unsigned long)proxyinfo->proxyport);
         if ((sock = proxyinfo_connect(proxy, proxyinfo->next, proxyinfo->proxyhost, proxyinfo->proxyport, errmsg)) == INVALID_SOCKET)
             //ERROR_DISCONNECT_AND_ABORT("Error connecting to SOCKS5 proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);/////
         ERROR_DISCONNECT_AND_ABORT(NULL);
-        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connected to SOCKS5 proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);
+        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connected to SOCKS5 proxy: %s:%lu", proxyinfo->proxyhost.c_str(), (unsigned long)proxyinfo->proxyport);
         //send initial data
-        if (!(proxyinfo->proxyuser && *proxyinfo->proxyuser) && !(proxyinfo->proxypass && *proxyinfo->proxypass)) {
+        if (!(proxyinfo->proxyuser.length()) && !(proxyinfo->proxypass.length())) {
             uint8_t initsend[] = {SOCKS5_VERSION, 1, SOCKS5_METHOD_NOAUTH};
             if (send(sock, (void*)initsend, sizeof(initsend), 0) < sizeof(initsend))
             ERROR_DISCONNECT_AND_ABORT("Error sending data to SOCKS5 proxy")
@@ -614,17 +618,17 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
         //authenticate if needed
         if (initrecv[1] == SOCKS5_METHOD_LOGIN) {
             char* authbuf;
-            size_t proxyuserlen = (proxyinfo->proxyuser ? strlen(proxyinfo->proxyuser) : 0);
-            size_t proxypasslen = (proxyinfo->proxypass ? strlen(proxyinfo->proxypass) : 0);
+            size_t proxyuserlen = proxyinfo->proxyuser.length();
+            size_t proxypasslen = proxyinfo->proxypass.length();
             size_t authbuflen = 3 + proxyuserlen + proxypasslen;
             if ((authbuf = (char*)malloc(authbuflen)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
             authbuf[0] = 1;
             authbuf[1] = proxyuserlen;
-            memcpy(authbuf + 2, proxyinfo->proxyuser, proxyuserlen);
+            memcpy(authbuf + 2, proxyinfo->proxyuser.c_str(), proxyuserlen);
             authbuf[2 + proxyuserlen] = proxypasslen;
-            memcpy(authbuf + 3 + proxyuserlen, proxyinfo->proxypass, proxypasslen);
-            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Sending authentication (login: %s)", (proxyinfo->proxyuser ? proxyinfo->proxyuser : NULL));
+            memcpy(authbuf + 3 + proxyuserlen, proxyinfo->proxypass.c_str(), proxypasslen);
+            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Sending authentication (login: %s)", (proxyinfo->proxyuser.length() ? proxyinfo->proxyuser.c_str() : NULL));
             if (send(sock, (void*)authbuf, authbuflen, 0) < authbuflen) {
                 free(authbuf);
                 ERROR_DISCONNECT_AND_ABORT("Error sending authentication data to SOCKS5 proxy")
@@ -637,7 +641,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             if (initrecv[1] == SOCKS5_STATUS_CONNECTION_REFUSED)
             ERROR_DISCONNECT_AND_ABORT("SOCKS5 access denied")
             if (initrecv[1] != 0)
-            ERROR_DISCONNECT_AND_ABORT("SOCKS5 authentication failed with status code %u (login: %s)", (unsigned int)initrecv[1], (proxyinfo->proxyuser ? proxyinfo->proxyuser : NULL))
+            ERROR_DISCONNECT_AND_ABORT("SOCKS5 authentication failed with status code %u (login: %s)", (unsigned int)initrecv[1], (proxyinfo->proxyuser.length() ? proxyinfo->proxyuser.c_str() : NULL))
             /////TO DO: check and report status
             //write_log_info(proxy, PROXYSOCKET_LOG_INFO, "SOCKS5 authentication succeeded (login: %s)", (proxyinfo->proxyuser ? proxyinfo->proxyuser : NULL));
         }
@@ -649,7 +653,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             ERROR_DISCONNECT_AND_ABORT("Error sending connect command with IPv4 address to SOCKS5 proxy")
         } else {
             struct socks5_connect_request_ipv4* request;
-            size_t dsthostlen = (dsthost ? strlen(dsthost) : 0);
+            size_t dsthostlen = dsthost.length();
             int requestlen = sizeof(struct socks5_connect_request_ipv4) - sizeof(uint32_t) + 1 + dsthostlen;
             request = (struct socks5_connect_request_ipv4*)malloc(requestlen);
             request->socks_version = SOCKS5_VERSION;
@@ -658,9 +662,9 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             request->socks_addresstype = SOCKS5_ADDRESSTYPE_DOMAINNAME;
             *(uint8_t*)&(request->dst_addr) = dsthostlen;
             if (dsthostlen > 0)
-                memcpy((void*)(((uint8_t*)&(request->dst_addr)) + 1), dsthost, dsthostlen);
+                memcpy((void*)(((uint8_t*)&(request->dst_addr)) + 1), dsthost.c_str(), dsthostlen);
             *(uint16_t*)(((uint8_t*)&(request->dst_addr)) + 1 + dsthostlen) = htons(dstport);
-            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination host: %s:%lu", dsthost, (unsigned long)dstport);
+            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination host: %s:%lu", dsthost.c_str(), (unsigned long)dstport);
             if (send(sock, (void*)request, requestlen, 0) < requestlen)
             ERROR_DISCONNECT_AND_ABORT("Error sending connect command with hostname to SOCKS5 proxy")
             free(request);
@@ -740,23 +744,23 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
     } else if (proxyinfo->proxytype == PROXYSOCKET_TYPE_WEB_CONNECT) {
         /* * * CONNECTION USING HTTP/WEB PROXY * * */
         //connect to the HTTP proxy server
-        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Preparing to connect to web proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);
+        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Preparing to connect to web proxy: %s:%lu", proxyinfo->proxyhost.c_str(), (unsigned long)proxyinfo->proxyport);
         if ((sock = proxyinfo_connect(proxy, proxyinfo->next, proxyinfo->proxyhost, proxyinfo->proxyport, errmsg)) == INVALID_SOCKET)
             //ERROR_DISCONNECT_AND_ABORT("Error connecting to web proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);/////
         ERROR_DISCONNECT_AND_ABORT(NULL);
-        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connected to web proxy: %s:%lu", proxyinfo->proxyhost, (unsigned long)proxyinfo->proxyport);
+        write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connected to web proxy: %s:%lu", proxyinfo->proxyhost.c_str(), (unsigned long)proxyinfo->proxyport);
         //prepare basic authentication data
         char* proxyauth = NULL;
-        if (proxyinfo->proxyuser && *proxyinfo->proxyuser) {
-            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Proxy authentication user: %s", proxyinfo->proxyuser);
+        if (proxyinfo->proxyuser.length()) {
+            write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Proxy authentication user: %s", proxyinfo->proxyuser.c_str());
             char* userpass;
-            int proxyuserlen = strlen(proxyinfo->proxyuser);
-            if ((userpass = (char*)malloc(proxyuserlen + (proxyinfo->proxypass ? strlen(proxyinfo->proxypass) : 0) + 2)) == NULL)
+            int proxyuserlen = proxyinfo->proxyuser.length();
+            if ((userpass = (char*)malloc(proxyuserlen + proxyinfo->proxypass.length()) + 2) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
-            memcpy(userpass, proxyinfo->proxyuser, proxyuserlen);
+            memcpy(userpass, proxyinfo->proxyuser.c_str(), proxyuserlen);
             userpass[proxyuserlen] = ':';
-            if (proxyinfo->proxypass)
-                strcpy(userpass + proxyuserlen + 1, proxyinfo->proxypass);
+            if (proxyinfo->proxypass.length())
+                strcpy(userpass + proxyuserlen + 1, proxyinfo->proxypass.c_str());
             proxyauth = make_base64_string(userpass);
             free(userpass);
         }
@@ -764,7 +768,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
         int result;
         char* response;
         char* proxycmd;
-        const char* host = (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : (dsthost ? dsthost : ""));
+        const char* host = (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : (dsthost.length() ? dsthost.c_str() : ""));
         size_t proxycmdlen = 22 + 15 + 1 + 5 + 1 + (proxyauth ? 29 + strlen(proxyauth) : 0);
         write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Sending HTTP proxy CONNECT %s:%u", host, dstport);
         if ((proxycmd = (char*)malloc(proxycmdlen)) == NULL)
@@ -772,7 +776,9 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
         snprintf(proxycmd, proxycmdlen, "CONNECT %s:%u HTTP/1.0%s%s\r\n\r\n", host, dstport, (proxyauth ? "\r\nProxy-Authorization: Basic " : ""), (proxyauth ? proxyauth : ""));
         if (proxyauth)
             free(proxyauth);
-        result = send_http_request(sock, proxycmd, &response);
+//        const char* proxycmd_c = proxycmd;
+
+        result = send_http_request(sock, str(proxycmd), str(response));
         free(proxycmd);
         if (result != 200)
             write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "HTTP proxy response code %i, details:\n%s", result, response);
@@ -792,8 +798,8 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             case 405 :
             ERROR_DISCONNECT_AND_ABORT("Method not allowed")
             case 407 :
-                if (proxyinfo->proxyuser && *proxyinfo->proxyuser)
-                ERROR_DISCONNECT_AND_ABORT("Proxy authentication failed (user: %s)", proxyinfo->proxyuser)
+                if (proxyinfo->proxyuser.length())
+                ERROR_DISCONNECT_AND_ABORT("Proxy authentication failed (user: %s)", proxyinfo->proxyuser.c_str())
                 else
                 ERROR_DISCONNECT_AND_ABORT("Proxy authentication required")
             case 408 :
@@ -820,7 +826,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
     return sock;
 }
 
-SOCKET proxysocket_connect (proxysocketconfig proxy, const char* dsthost, uint16_t dstport, char** errmsg)
+SOCKET proxysocket_connect (proxysocketconfig proxy, const std::string dsthost, uint16_t dstport, std::string errmsg)
 {
     if (proxy) {
         return proxyinfo_connect(proxy, proxy->proxyinfolist, dsthost, dstport, errmsg);

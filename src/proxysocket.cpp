@@ -822,7 +822,10 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             free(proxyauth);
 //        const char* proxycmd_c = proxycmd;
 
-        result = send_http_request(sock, str(proxycmd), str(response));
+        std::string proxycmd_c = proxycmd;
+        std::string response_r = response;
+
+        result = send_http_request(sock, proxycmd_c, response_r);
         free(proxycmd);
         if (result != 200)
             write_log_info(proxy, PROXYSOCKET_LOG_DEBUG, "HTTP proxy response code %i, details:\n%s", result, response);

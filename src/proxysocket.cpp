@@ -568,7 +568,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
         request->dst_port = htons(dstport);
         request->dst_addr = (proxy->proxy_dns == USE_CLIENT_DNS ? hostaddr : htonl(0x000000FF));
         request->userid[0] = 0;
-        if (proxyinfo->proxyuser.length() != 0 && proxyinfo->proxyuser.length()!=0) {
+        if (proxyinfo->proxyuser.length()) {
             requestlen += (proxyinfo->proxyuser).length();
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
@@ -587,7 +587,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             ///TO-DO END
 
         }
-        if (proxyinfo->proxyuser.length()!=0)
+        if (proxyinfo->proxyuser.length())
             write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost.c_str()), (unsigned long)dstport);
         else
             write_log_info(proxy, PROXYSOCKET_LOG_INFO, "Connecting to destination: %s:%lu (user-id: %s)", (proxy->proxy_dns == USE_CLIENT_DNS ? inet_ntoa(*(struct in_addr*)&hostaddr) : dsthost.c_str()), (unsigned long)dstport, proxyinfo->proxyuser.c_str());

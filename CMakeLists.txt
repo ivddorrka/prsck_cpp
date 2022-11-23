@@ -32,7 +32,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 
-add_executable(proxycpp main.cpp src/proxysocket.h)
+add_executable(proxycpp main.cpp src/proxysocket.h src/proxysocket.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 

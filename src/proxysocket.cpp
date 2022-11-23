@@ -62,6 +62,50 @@ uint32_t get_ipv4_address (const std::string hostname)
 }
 
 
+char* make_base64_string (const char* str)
+{
+    int done = 0;
+    char base64_table[256];
+    int i;
+    char* buf = (char*)malloc((strlen(str) + 2) / 3 * 4 + 1);
+    char* dst = buf;
+    const char* src = str;
+    //fill base64_table with character encodings
+    for (i = 0; i < 26; i++) {
+        base64_table[i] = (char)('A' + i);
+        base64_table[26 + i] = (char)('a' + i);
+    }
+    for (i = 0; i < 10; i++) {
+        base64_table[52 + i] = (char)('0' + i);
+    }
+    base64_table[62] = '+';
+    base64_table[63] = '/';
+    //encode data
+    while (!done) {
+        char igroup[3];
+        int n;
+
+        //read input
+        igroup[0] = igroup[1] = igroup[2] = 0;
+        for (n = 0; n < 3; n++) {
+            if (!*src) {
+                done++;
+                break;
+            }
+            igroup[n] = *src++;
+        }
+        //code
+        if (n > 0) {
+            *dst++ = base64_table[igroup[0] >> 2];
+            *dst++ = base64_table[((igroup[0] & 3) << 4) | (igroup[1] >> 4)];
+            *dst++ = (n < 2 ? '=' : base64_table[((igroup[1] & 0xF) << 2) | (igroup[2] >> 6)]);
+            *dst++ = (n < 3 ? '=' : base64_table[igroup[2] & 0x3F]);
+        }
+    }
+    *dst = 0;
+    return buf;
+}
+
 
 int send_http_request (SOCKET sock, const std::string request, std::string response)
 {
@@ -529,7 +573,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             if ((request = (struct socks4_connect_request*)realloc(request, requestlen)) == NULL)
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
             ///////////////////TO-DO
-            strcpy((char*)&(request->userid), proxyinfo->proxyuser); //not sure what it does..
+            strcpy((char*)&(request->userid), proxyinfo->proxyuser); //
             ///////////////////TO-DO END
         }
 
@@ -539,7 +583,7 @@ SOCKET proxyinfo_connect (proxysocketconfig proxy, struct proxyinfo_struct* prox
             ERROR_DISCONNECT_AND_ABORT(memory_allocation_error)
             strcpy(((char*)request) + requestlen, (dsthost.length()!=0 ? dsthost : ""));
             ///TO-DO
-            requestlen += dsthostlen + 1;  //c thing - don't need it here
+            requestlen += dsthostlen + 1;  //
             ///TO-DO END
 
         }
@@ -883,7 +927,7 @@ void socket_set_timeouts_milliseconds (SOCKET sock, uint32_t sendtimeout, uint32
 
 
 
-/////////////////// rewrite to string
+///////////////////
 std::string socket_receiveline (SOCKET sock)
 {
     char* buf;
